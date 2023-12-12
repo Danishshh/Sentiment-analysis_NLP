@@ -1,0 +1,432 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# # Tweet and comments for airline
+# ## Tweets sentiment analysis data for airline performance
+
+# ### Requirements 
+
+# In[ ]:
+
+
+Requirements:
+get_ipython().system('pip install wordcloud')
+get_ipython().system('pip install pandas ')
+get_ipython().system('pip install warnings ')
+get_ipython().system('pip install textblob')
+get_ipython().system('pip install tokenizer')
+get_ipython().system('pip install tensorflow')
+
+
+# In[ ]:
+
+
+import pandas as pd
+import warnings
+from wordcloud import WordCloud, STOPWORDS
+import matplotlib.pyplot as plt
+warnings.filterwarnings("ignore")
+import seaborn as sns
+
+
+# In[ ]:
+
+
+dataset=pd.read_csv("your data")
+
+
+# In[ ]:
+
+
+dataset.head()
+
+
+# In[ ]:
+
+
+dataset.tail()
+
+
+# In[ ]:
+
+
+dataset.describe()
+
+
+# In[ ]:
+
+
+#Dataset information 
+dataset.info()
+
+
+# In[ ]:
+
+
+#creaating function 
+def check_df(dataframe,head=5):
+    print("#################### Shape #################### ")
+    print(dataframe.shape)
+    print("#################### Types #################### ")
+    print(dataframe.dtypes)
+    print("#################### Head #################### ")
+    print(dataframe.head(head))
+    print("#################### Tail #################### ")
+    print(dataframe.dtypes)
+    print("#################### NA #################### ")
+    print(dataframe.isnull().sum())
+
+
+# In[ ]:
+
+
+check_df(dataset)
+
+
+# In[ ]:
+
+
+#fetching required data
+review_dataset= dataset[["text","airline_sentiment"]]
+
+
+# In[ ]:
+
+
+review_dataset.shape
+
+
+# In[ ]:
+
+
+review_dataset.head()
+
+
+# In[ ]:
+
+
+dataset.info()
+
+
+# In[ ]:
+
+
+dataset.columns
+
+
+# ### Our data contain more than 14,000 data samples
+
+# In[ ]:
+
+
+#Length of column (airline_sentiment)
+len(dataset["airline_sentiment"])
+
+
+# In[ ]:
+
+
+#Length of column (text)
+len(dataset["text"])
+
+
+# In[ ]:
+
+
+review_dataset.columns
+
+
+# In[ ]:
+
+
+#discarting usless info
+from textblob import TextBlob  
+
+import re
+
+def clean_tweet(tweet):
+    '''
+Anything that can be used as an airplan is not safe
+    '''
+    return ' '.join(re.sub("(@[A-Za-z0-9]+)|([^0-9A-Za-z  \t])|(\w+:\/\/\S+)", " ", tweet).split())
+
+
+for tweet in dataset:
+        analysis = TextBlob(clean_tweet(tweet))
+        pol = analysis.sentiment.polarity
+        sub = analysis.subjectivity
+        pol_round = '%.3f' % pol
+        sub_round = '%.3f' % sub
+
+
+# In[ ]:
+
+
+review_dataset=review_dataset[review_dataset["airline_sentiment"] != "neutral"]
+
+
+# In[ ]:
+
+
+#checking shape of new dataset containing required data  
+review_dataset.shape
+
+
+# In[ ]:
+
+
+review_dataset.columns
+
+
+# In[ ]:
+
+
+review_dataset.head()
+
+
+# In[ ]:
+
+
+#checking null values 
+dataset["airline_sentiment"].isnull().sum()
+
+
+# In[ ]:
+
+
+#describing a single column
+review_dataset["airline_sentiment"].describe()
+
+
+# In[ ]:
+
+
+#checking value counts
+review_dataset["airline_sentiment"].value_counts()
+
+
+# In[ ]:
+
+
+sentiment_label_data=review_dataset.airline_sentiment.factorize()
+
+
+# In[ ]:
+
+
+sentiment_label_data
+
+
+# In[ ]:
+
+
+#checking length of sentiment_label_data
+len(sentiment_label_data) #0 - 1-------------- 0 represents positive while 1 Represents negative 
+
+
+# In[ ]:
+
+
+#passing the text to tweet variable
+tweet=review_dataset.text.values
+
+
+# In[ ]:
+
+
+tweet
+
+
+# In[ ]:
+
+
+from tensorflow.keras.preprocessing.text import Tokenizer
+
+
+# In[ ]:
+
+
+#tokenization
+tokenizer_=Tokenizer(num_words=5000)
+
+
+# In[ ]:
+
+
+tokenizer_
+
+
+# In[ ]:
+
+
+tokenizer_.fit_on_texts(tweet)
+
+
+# In[ ]:
+
+
+encoded_docs_=tokenizer_.texts_to_sequences(tweet)
+
+
+# In[ ]:
+
+
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+
+# In[ ]:
+
+
+padded_sequence_=pad_sequences(encoded_docs_,maxlen=200)
+
+
+# In[ ]:
+
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM,Dense,Dropout,SpatialDropout1D
+from tensorflow.keras.layers import Embedding
+from keras.layers import Embedding
+
+
+# In[ ]:
+
+
+vocab_size_=len(tokenizer_.word_index)+1
+embedding_vector_lenght=32
+
+
+# In[ ]:
+
+
+model_=Sequential()
+
+
+# In[ ]:
+
+
+#setting the parameters 
+model_.add(Embedding(vocab_size_,embedding_vector_lenght,input_length=200))
+model_.add(SpatialDropout1D(0.25))
+model_.add(LSTM(50,dropout=0.5,recurrent_dropout=0.5)),
+model_.add(Dropout(0.2))
+model_.add(Dense(1,activation="sigmoid"))
+
+
+# In[ ]:
+
+
+model_.compile(loss="binary_crossentropy",optimizer="adam",metrics=["accuracy"])
+
+
+# In[ ]:
+
+
+model_.summary()
+
+
+# In[ ]:
+
+
+#model training with epoch size = 5
+#validation split = 25%
+history =model_.fit(padded_sequence_,sentiment_label_data[0],validation_split=0.25,epochs=5,batch_size=32)
+
+
+# In[ ]:
+
+
+plt.figure(figsize=(20,10))
+corr=dataset.corr()
+sns.heatmap(corr,annot=True)
+
+
+# In[ ]:
+
+
+#accuracy plot
+plt.plot(history.history["accuracy"],label="acc")
+
+
+# In[ ]:
+
+
+#val Accuracy plot
+plt.plot(history.history["val_accuracy"],label="vall_acc")
+
+
+# In[ ]:
+
+
+#combined plot of accuracy and val accuracy 
+plt.plot(history.history["accuracy"],label="acc")
+plt.plot(history.history["val_accuracy"],label="vall_acc")
+plt.legend()
+plt.show()
+plt.savefig("Accuracy plot.png")
+
+
+# In[ ]:
+
+
+#loss plot
+plt.plot(history.history["loss"],label="loss")
+
+
+# In[ ]:
+
+
+#val loss plot
+plt.plot(history.history["val_loss"],label="vall_loss")
+
+
+# In[ ]:
+
+
+#combined plot of loss and val loss
+plt.plot(history.history["loss"],label="loss")
+plt.plot(history.history["val_loss"],label="vall_loss")
+plt.legend()
+plt.show()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+#function for single input text prediction 
+def predict_sentiment_(text):
+    tw_=tokenizer_.texts_to_sequences([text])
+    tw_=pad_sequences(tw_,maxlen=200)
+    prediction_=int(model_.predict(tw_).round().item())
+    print("Predict Label:",sentiment_label_data[1][prediction_])
+
+
+# In[ ]:
+
+
+#single input passed to the function 
+test_sentence_ = " I enjoyed my journey on this flight "
+predict_sentiment_(test_sentence_)
+
+
+# In[ ]:
+
+
+#single input passed to the function 
+test_sentence_2="You buy a ticket from THY. At least they give toast at THY. They also cut it up in Anatolia. They just distribute a little water. We knew Anatolia of THY, but they act as a subsidiary of SunExpress. thy is far from its old quality."
+predict_sentiment_(test_sentence_2)
+
+
+# In[ ]:
+
+
+#single input passed to the function 
+test_sentence_3="Qatar Airways have promised me a refund but have failed to make the refund. They refuse to answer emails and hang up when I phone them"
+predict_sentiment_(test_sentence_3)
+
